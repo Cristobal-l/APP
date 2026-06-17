@@ -152,7 +152,7 @@ def optimizar_desde_bytes(datos_binarios: bytes) -> bytes:
         print(f"Error al optimizar imagen: {e}")
         raise HTTPException(status_code=400, detail="Error al procesar el formato de la imagen.")
 
-def procesar_imagen_directo(img_bytes_opt: bytes) -> str:
+def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None) -> str:
     try:
         img_b64 = base64.b64encode(img_bytes_opt).decode('utf-8')
         response = client.chat.completions.create(
@@ -180,23 +180,16 @@ def procesar_imagen_directo(img_bytes_opt: bytes) -> str:
         ESTADO_ACTUAL["descripcion"] = descripcion
         ESTADO_ACTUAL["timestamp"] = time.time()
         
-        # --- NUEVA LOGICA: Guardar en la tabla 'mensaje' con su FK id_usuario ---
+        # --- NUEVA LOGICA: Guardar en la tabla 'mensaje' con el id_usuario recibido ---
         try:
-            # 1. Buscamos a quién le pertenece el dispositivo para extraer su id_usuario
-            res_disp = supabase.table("dispositivo").select("id_usuario").limit(1).execute()
-            
-            if res_disp.data and res_disp.data[0].get("id_usuario"):
-                user_id = res_disp.data[0]["id_usuario"]
-                
-                # 2. Insertamos la descripción en 'mensaje' mapeando correctamente las columnas de tu BD
-                # Cambia "texto" si la columna en tu tabla mensaje se llama distinto (ej: "contenido" o "descripcion")
+            if user_id:
                 supabase.table("mensaje").insert({
                     "texto": descripcion, 
                     "id_usuario": user_id
                 }).execute()
                 print("Mensaje de IA guardado con éxito vinculándolo al usuario.")
             else:
-                print("Advertencia: No se encontró ningún usuario asociado al dispositivo en la BD.")
+                print("Advertencia: No se recibió ningún id_usuario de la app, el mensaje no se guardó en BD.")
         except Exception as db_e:
             print(f"Error guardando en la tabla mensaje: {db_e}")
             
@@ -215,6 +208,8 @@ async def upload(request: Request):
     if not img_data:
         raise HTTPException(status_code=400, detail="No hay datos binarios")
 
+    user_id = request.headers.get("x-user-id")
+
     bytes_optimizados = optimizar_desde_bytes(img_data)
 
     try:
@@ -229,7 +224,7 @@ async def upload(request: Request):
     ESTADO_ACTUAL["descripcion"] = "Procesando nueva imagen..."
     ESTADO_ACTUAL["timestamp"] = time.time()
 
-    resultado_ia = procesar_imagen_directo(bytes_optimizados)
+    resultado_ia = procesar_imagen_directo(bytes_optimizados, user_id)
     return resultado_ia 
 
 @app.get("/latest-info")
