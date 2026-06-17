@@ -82,8 +82,17 @@ def registrar_usuario(nuevo_usuario: UsuarioRequest):
 def iniciar_sesion(credenciales: LoginRequest):
     try:
         llamada = supabase.table("usuario").select("id", "nombre").eq("correo", credenciales.correo).eq("contrasena", credenciales.contrasena).execute()
+
         if llamada.data:
-            return {"estado": "exito", "usuario": llamada.data[0]}
+            usuario = llamada.data[0]
+            id_usuario_logueado = usuario["id"]
+            existente = supabase.table("dispositivo").select("id").limit(1).execute()
+            if existente.data:
+                id_dispositivo = existente.data[0]["id"]
+                supabase.table("dispositivo").update({"id_usuario": id_usuario_logueado}).eq("id", id_dispositivo).execute()
+
+            return {"estado": "exito", "usuario": usuario}
+
         return {"estado": "error", "mensaje": "Correo o contraseña incorrectos"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -152,7 +161,7 @@ def optimizar_desde_bytes(datos_binarios: bytes) -> bytes:
         print(f"Error al optimizar imagen: {e}")
         raise HTTPException(status_code=400, detail="Error al procesar el formato de la imagen.")
 
-def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None) -> str:
+def procesar_imagen_directo(img_bytes_opt: bytes) -> str:
     try:
         img_b64 = base64.b64encode(img_bytes_opt).decode('utf-8')
         response = client.chat.completions.create(
@@ -180,18 +189,23 @@ def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None) -> str:
         ESTADO_ACTUAL["descripcion"] = descripcion
         ESTADO_ACTUAL["timestamp"] = time.time()
         
-        # --- NUEVA LOGICA: Guardar en la tabla 'mensaje' con el id_usuario recibido ---
+
         try:
-            if user_id:
+
+            res_disp = supabase.table("dispositivo").select("id_usuario").limit(1).execute()
+            
+            if res_disp.data and res_disp.data[0].get("id_usuario"):
+                user_id = res_disp.data[0]["id_usuario"]
+                
                 supabase.table("mensaje").insert({
                     "texto": descripcion, 
                     "id_usuario": user_id
                 }).execute()
-                print("Mensaje de IA guardado con éxito vinculándolo al usuario.")
+                print(f" Mensaje de IA guardado para el usuario activo: {user_id}")
             else:
-                print("Advertencia: No se recibió ningún id_usuario de la app, el mensaje no se guardó en BD.")
+                print(" No se pudo guardar el mensaje: Ningún usuario ha iniciado sesión con este dispositivo.")
         except Exception as db_e:
-            print(f"Error guardando en la tabla mensaje: {db_e}")
+            print(f" Error guardando en la tabla mensaje: {db_e}")
             
         return descripcion
     except Exception as e:
