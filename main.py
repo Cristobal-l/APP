@@ -133,7 +133,7 @@ def obtener_estado_esp32():
         return {
             "activo": conectado,
             "mensaje": "Dispositivo activo" if conectado else "Sin conexión",
-            "bateria": bateria,
+            "bateria": battery,
             "ultimo_ping": ultimo_ping
         }
     except Exception as e:
@@ -180,10 +180,25 @@ def procesar_imagen_directo(img_bytes_opt: bytes) -> str:
         ESTADO_ACTUAL["descripcion"] = descripcion
         ESTADO_ACTUAL["timestamp"] = time.time()
         
+        # --- NUEVA LOGICA: Guardar en la tabla 'mensaje' con su FK id_usuario ---
         try:
-            supabase.table("descripcion").insert({"texto": descripcion}).execute()
+            # 1. Buscamos a quién le pertenece el dispositivo para extraer su id_usuario
+            res_disp = supabase.table("dispositivo").select("id_usuario").limit(1).execute()
+            
+            if res_disp.data and res_disp.data[0].get("id_usuario"):
+                user_id = res_disp.data[0]["id_usuario"]
+                
+                # 2. Insertamos la descripción en 'mensaje' mapeando correctamente las columnas de tu BD
+                # Cambia "texto" si la columna en tu tabla mensaje se llama distinto (ej: "contenido" o "descripcion")
+                supabase.table("mensaje").insert({
+                    "texto": descripcion, 
+                    "id_usuario": user_id
+                }).execute()
+                print("Mensaje de IA guardado con éxito vinculándolo al usuario.")
+            else:
+                print("Advertencia: No se encontró ningún usuario asociado al dispositivo en la BD.")
         except Exception as db_e:
-            pass
+            print(f"Error guardando en la tabla mensaje: {db_e}")
             
         return descripcion
     except Exception as e:
