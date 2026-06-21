@@ -144,6 +144,8 @@ def obtener_estado_esp32():
 def optimizar_desde_bytes(datos_binarios: bytes) -> bytes:
     try:
         img = Image.open(io.BytesIO(datos_binarios))
+        # Rotar la imagen 90 grados a la derecha (sentido horario)
+        img = img.rotate(-90, expand=True)
         img.thumbnail((320, 320)) 
         buffer = io.BytesIO()
         img.save(buffer, format="JPEG", quality=70)
