@@ -152,9 +152,14 @@ def optimizar_desde_bytes(datos_binarios: bytes) -> bytes:
         print(f"Error al optimizar imagen: {e}")
         raise HTTPException(status_code=400, detail="Error al procesar el formato de la imagen.")
 
-def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None) -> str:
+def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None, modo: str = "calle") -> str:
     try:
         img_b64 = base64.b64encode(img_bytes_opt).decode('utf-8')
+        
+        prompt = "Actua como guia para un ciego en máximo 2 oraciones. Indica: peligros u obstáculos en la trayectoria, objetos relevantes, semáforos, señales o texto visible."
+        if modo == "casa":
+            prompt = "Actua como guia para un ciego en el interior de una casa en máximo 2 oraciones. Describe los muebles, objetos cercanos, puertas, y cualquier cosa relevante para moverse seguro en el interior."
+            
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -163,7 +168,7 @@ def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None) -> str:
                     "content": [
                         {
                             "type": "text", 
-                            "text": "Actua como guia para un ciego en máximo 2 oraciones. Indica: peligros u obstáculos en la trayectoria, objetos relevantes, semáforos, señales o texto visible."
+                            "text": prompt
                         },
                         {
                             "type": "image_url", 
@@ -209,6 +214,7 @@ async def upload(request: Request):
         raise HTTPException(status_code=400, detail="No hay datos binarios")
 
     user_id = request.headers.get("x-user-id")
+    modo = request.headers.get("x-modo", "calle")
 
     bytes_optimizados = optimizar_desde_bytes(img_data)
 
@@ -224,7 +230,7 @@ async def upload(request: Request):
     ESTADO_ACTUAL["descripcion"] = "Procesando nueva imagen..."
     ESTADO_ACTUAL["timestamp"] = time.time()
 
-    resultado_ia = procesar_imagen_directo(bytes_optimizados, user_id)
+    resultado_ia = procesar_imagen_directo(bytes_optimizados, user_id, modo)
     return resultado_ia 
 
 @app.get("/latest-info")
