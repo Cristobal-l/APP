@@ -146,6 +146,8 @@ def optimizar_desde_bytes(datos_binarios: bytes) -> bytes:
         img = Image.open(io.BytesIO(datos_binarios))
         # Rotar la imagen 90 grados a la derecha (sentido horario)
         img = img.rotate(-90, expand=True)
+        # Espejo horizontal para corregir izquierda/derecha desde la perspectiva del usuario
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
         img.thumbnail((320, 320)) 
         buffer = io.BytesIO()
         img.save(buffer, format="JPEG", quality=70)
