@@ -160,25 +160,20 @@ def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None, modo: str
         
         if modo == "casa":
             prompt = (
-                "Eres un asistente visual para una persona ciega dentro de su hogar. "
-                "Describe la escena con el mayor detalle posible: nombra cada objeto visible, "
-                "su color, forma, tamaño, material y posición relativa (izquierda, derecha, centro, cerca, lejos). "
-                "Menciona puertas, ventanas, muebles, electrodomésticos, decoraciones, textos visibles y personas. "
-                "Indica si hay obstáculos en el suelo como cables, zapatos, juguetes o mascotas. "
-                "Usa un tono cálido y descriptivo. Responde en máximo 4 oraciones en español."
+                "Asistente visual para ciego en su hogar. "
+                "Nombra solo los 2 o 3 objetos más importantes, su color y posición (izquierda, derecha, al frente). "
+                "Menciona obstáculos en el suelo si los hay. "
+                "Máximo 1 oración corta en español."
             )
-            max_tok = 200
+            max_tok = 60
         else:
             prompt = (
-                "Eres un asistente de navegación urbana para una persona ciega que camina por la calle. "
-                "SOLO menciona lo que sea un peligro inmediato o información crítica para avanzar de forma segura. "
-                "Prioriza en este orden: 1) obstáculos en el camino (hoyos, postes, escalones, objetos en el piso), "
-                "2) vehículos o bicicletas en movimiento, 3) estado del semáforo si hay uno visible, "
-                "4) cruces peatonales o cambios de terreno (rampa, escalera, desnivel). "
-                "NO describas edificios, cielo, árboles ni nada decorativo. "
-                "Sé extremadamente breve y directo. Responde en máximo 2 oraciones cortas en español."
+                "Asistente de navegación para ciego en la calle. "
+                "SOLO di peligros u obstáculos inmediatos y su posición. "
+                "Si no hay peligro, di 'Camino despejado'. "
+                "Máximo 1 oración corta en español."
             )
-            max_tok = 100
+            max_tok = 50
             
         response = client.chat.completions.create(
             model="gpt-4o-mini",
