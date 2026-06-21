@@ -158,9 +158,27 @@ def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None, modo: str
     try:
         img_b64 = base64.b64encode(img_bytes_opt).decode('utf-8')
         
-        prompt = "Actua como guia para un ciego en máximo 2 oraciones. Indica: peligros u obstáculos en la trayectoria, objetos relevantes, semáforos, señales o texto visible."
         if modo == "casa":
-            prompt = "Actua como guia para un ciego en el interior de una casa en máximo 2 oraciones. Describe los muebles, objetos cercanos, puertas, y cualquier cosa relevante para moverse seguro en el interior."
+            prompt = (
+                "Eres un asistente visual para una persona ciega dentro de su hogar. "
+                "Describe la escena con el mayor detalle posible: nombra cada objeto visible, "
+                "su color, forma, tamaño, material y posición relativa (izquierda, derecha, centro, cerca, lejos). "
+                "Menciona puertas, ventanas, muebles, electrodomésticos, decoraciones, textos visibles y personas. "
+                "Indica si hay obstáculos en el suelo como cables, zapatos, juguetes o mascotas. "
+                "Usa un tono cálido y descriptivo. Responde en máximo 4 oraciones en español."
+            )
+            max_tok = 200
+        else:
+            prompt = (
+                "Eres un asistente de navegación urbana para una persona ciega que camina por la calle. "
+                "SOLO menciona lo que sea un peligro inmediato o información crítica para avanzar de forma segura. "
+                "Prioriza en este orden: 1) obstáculos en el camino (hoyos, postes, escalones, objetos en el piso), "
+                "2) vehículos o bicicletas en movimiento, 3) estado del semáforo si hay uno visible, "
+                "4) cruces peatonales o cambios de terreno (rampa, escalera, desnivel). "
+                "NO describas edificios, cielo, árboles ni nada decorativo. "
+                "Sé extremadamente breve y directo. Responde en máximo 2 oraciones cortas en español."
+            )
+            max_tok = 100
             
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -179,7 +197,7 @@ def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None, modo: str
                     ],
                 }
             ],
-            max_tokens=100
+            max_tokens=max_tok
         )
         descripcion = response.choices[0].message.content
         print(f"Resultado IA:\n{descripcion}")
