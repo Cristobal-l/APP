@@ -144,8 +144,8 @@ def obtener_estado_esp32():
 def optimizar_desde_bytes(datos_binarios: bytes, modo: str = "calle") -> bytes:
     try:
         img = Image.open(io.BytesIO(datos_binarios))
-        # Rotar la imagen 90 grados a la derecha (sentido horario)
-        img = img.rotate(-90, expand=True)
+        # Rotar la imagen 90 grados a la izquierda (sentido antihorario)
+        img = img.rotate(90, expand=True)
         # Espejo horizontal para corregir izquierda/derecha desde la perspectiva del usuario
         img = img.transpose(Image.FLIP_LEFT_RIGHT)
         
