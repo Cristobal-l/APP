@@ -150,19 +150,19 @@ def optimizar_desde_bytes(datos_binarios: bytes, modo: str = "calle") -> bytes:
         img = img.transpose(Image.FLIP_LEFT_RIGHT)
         
         # FIX #7: Crop central en modo calle para reducir el FOV
-        # Recortar el 60% central de la imagen para simular zoom y dar más detalle de lo de enfrente
+        # Recortar el 70% central de la imagen para simular zoom y dar más detalle de lo de enfrente
         if modo == "calle":
             w, h = img.size
-            crop_ratio = 0.6  # Mantener el 60% central
+            crop_ratio = 0.7  # Mantener el 70% central (más contexto que antes)
             new_w = int(w * crop_ratio)
             new_h = int(h * crop_ratio)
             left = (w - new_w) // 2
             top = (h - new_h) // 2
             img = img.crop((left, top, left + new_w, top + new_h))
         
-        img.thumbnail((320, 320)) 
+        img.thumbnail((512, 512))  # Mayor resolución para mejor detección de escaleras y superficies
         buffer = io.BytesIO()
-        img.save(buffer, format="JPEG", quality=70)
+        img.save(buffer, format="JPEG", quality=85)  # Mayor calidad para preservar detalles
         return buffer.getvalue()
     except Exception as e:
         print(f"Error al optimizar imagen: {e}")
@@ -173,37 +173,45 @@ def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None, modo: str
         img_b64 = base64.b64encode(img_bytes_opt).decode('utf-8')
         
         if modo == "casa":
-            # FIX #5: Prompt mejorado para modo casa - alerta objetos colgantes y nivel cabeza
+            # Prompt modo casa - detección de obstáculos, escaleras, y objetos a nivel cabeza
             prompt = (
-                "Eres un asistente visual para una persona ciega dentro de su hogar. "
-                "PRIORIDAD MÁXIMA: Alerta sobre cualquier objeto a nivel de cabeza o colgante "
-                "(lámparas bajas, estantes, marcos de puerta, ropa colgada, cables, ventiladores de techo). "
-                "Luego nombra los 2 o 3 objetos más importantes visibles, indicando: "
-                "1) Su posición horizontal (izquierda, derecha, al frente) "
-                "2) Su posición vertical (en el suelo, a nivel de cintura, a nivel de cabeza, arriba). "
-                "Menciona obstáculos en el suelo si los hay (cables, juguetes, escalones). "
-                "Responde en máximo 2 oraciones cortas en español."
+                "Eres un asistente de movilidad para una persona ciega dentro de un edificio o casa. "
+                "Analiza la imagen con EXTREMO CUIDADO en el siguiente orden de prioridad:\n"
+                "1) SUELO Y SUPERFICIE: ¿Hay escaleras (subiendo o bajando), escalones, rampas, desniveles, "
+                "o cambios de altura en el piso? Si ves líneas horizontales paralelas que forman peldaños, "
+                "SON ESCALERAS, no un 'camino liso'. Indica si suben o bajan y cuántos peldaños aproximados.\n"
+                "2) OBSTÁCULOS A NIVEL DE CABEZA: Lámparas bajas, marcos de puerta, estantes salientes, "
+                "ventiladores de techo, ropa colgada, cables.\n"
+                "3) OBSTÁCULOS EN EL SUELO: Cables, objetos tirados, alfombras arrugadas, muebles bajos.\n"
+                "4) ESPACIO: ¿Hay puerta, pasillo, o pared al frente? ¿A qué distancia aproximada?\n"
+                "Usa referencias de tamaño (comparando con puertas, personas, muebles) para estimar alturas y distancias. "
+                "Responde en máximo 3 oraciones cortas en español. Sé MUY específico con escaleras y desniveles."
             )
-            max_tok = 120
+            max_tok = 180
         else:
-            # FIX #3 + #4 + #7: Prompt mejorado para modo calle
+            # Prompt modo calle - navegación exterior con detección precisa de superficies
             prompt = (
                 "Eres un asistente de navegación para una persona ciega caminando por la calle. "
                 "La imagen muestra lo que está DIRECTAMENTE AL FRENTE del usuario. "
-                "REGLAS ESTRICTAS: "
-                "1) SIEMPRE describe lo que hay al frente (pared, vereda, calle, reja, poste, vehículo, persona, etc). "
-                "NUNCA digas 'camino despejado' si hay una pared, reja, muro u objeto sólido al frente. "
-                "Solo di 'camino despejado' si realmente hay espacio abierto para caminar varios metros. "
-                "2) Si hay CUALQUIER texto visible (letreros de tiendas, nombres de calles, números de buses/micros, "
-                "carteles, señales de tránsito, avisos), LÉELO COMPLETO y di dónde está. "
-                "3) Indica la dirección de los obstáculos: izquierda, derecha, al frente, arriba. "
-                "4) Alerta sobre desniveles, escalones, hoyos o superficies irregulares. "
-                "Responde en máximo 2 oraciones cortas en español."
+                "Analiza con MÁXIMA PRECISIÓN en este orden:\n"
+                "1) SUPERFICIE DEL SUELO: ¿Es vereda lisa, adoquines, tierra, pasto, asfalto? "
+                "¿HAY ESCALERAS, GRADAS O PELDAÑOS? Si ves líneas horizontales con sombras que forman escalones, "
+                "di EXACTAMENTE 'hay escaleras' e indica si suben o bajan y cuántos peldaños aproximados. "
+                "¿Hay rampas, baches, hoyos, cordones de vereda, o desniveles? NUNCA digas 'camino liso' "
+                "si hay cualquier cambio de nivel visible.\n"
+                "2) OBSTÁCULOS: ¿Qué hay al frente? (pared, reja, poste, vehículo, persona, árbol, banca). "
+                "Indica la dirección (izquierda, derecha, al frente) y distancia aproximada. "
+                "NUNCA digas 'camino despejado' si hay un objeto sólido a menos de 3 metros.\n"
+                "3) TEXTO VISIBLE: Lee COMPLETO cualquier letrero, cartel, señal de tránsito, "
+                "nombre de calle o número de bus visible.\n"
+                "4) ALTURA: Si hay objetos elevados (ramas bajas, toldos, señales), estima la altura "
+                "usando referencias como puertas (~2m), personas (~1.7m), o postes.\n"
+                "Responde en máximo 3 oraciones cortas en español. Sé PRECISO con las superficies."
             )
-            max_tok = 150
+            max_tok = 200
             
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",
@@ -214,7 +222,7 @@ def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None, modo: str
                         },
                         {
                             "type": "image_url", 
-                            "image_url": {"url": f"data:image/jpeg;base64,{img_b64}", "detail": "auto"}
+                            "image_url": {"url": f"data:image/jpeg;base64,{img_b64}", "detail": "high"}
                         },
                     ],
                 }
