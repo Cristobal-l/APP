@@ -173,42 +173,39 @@ def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None, modo: str
         img_b64 = base64.b64encode(img_bytes_opt).decode('utf-8')
         
         if modo == "casa":
-            # Prompt modo casa - detección de obstáculos, escaleras, y objetos a nivel cabeza
+            # Prompt modo casa - solo obstáculos a nivel cabeza, omitir si no hay nada
             prompt = (
-                "Eres un asistente de movilidad para una persona ciega dentro de un edificio o casa. "
-                "Analiza la imagen con EXTREMO CUIDADO en el siguiente orden de prioridad:\n"
-                "1) SUELO Y SUPERFICIE: ¿Hay escaleras (subiendo o bajando), escalones, rampas, desniveles, "
-                "o cambios de altura en el piso? Si ves líneas horizontales paralelas que forman peldaños, "
-                "SON ESCALERAS, no un 'camino liso'. Indica si suben o bajan y cuántos peldaños aproximados.\n"
-                "2) OBSTÁCULOS A NIVEL DE CABEZA: Lámparas bajas, marcos de puerta, estantes salientes, "
-                "ventiladores de techo, ropa colgada, cables.\n"
-                "3) OBSTÁCULOS EN EL SUELO: Cables, objetos tirados, alfombras arrugadas, muebles bajos.\n"
-                "4) ESPACIO: ¿Hay puerta, pasillo, o pared al frente? ¿A qué distancia aproximada?\n"
-                "Usa referencias de tamaño (comparando con puertas, personas, muebles) para estimar alturas y distancias. "
-                "Responde en máximo 3 oraciones cortas en español. Sé MUY específico con escaleras y desniveles."
+                "Eres un asistente para una persona ciega dentro de una casa o edificio. "
+                "Tu ÚNICA prioridad es detectar peligros A NIVEL DE LA CABEZA del usuario: "
+                "lámparas bajas, marcos de puerta, estantes salientes, ventiladores de techo, "
+                "ropa colgada, cables colgantes, repisas, o cualquier objeto que sobresalga y pueda golpearle la cabeza o la cara. "
+                "También menciona escaleras o desniveles si los ves.\n\n"
+                "REGLAS ESTRICTAS:\n"
+                "- Si NO hay nada peligroso a nivel de cabeza ni escaleras, responde EXACTAMENTE: \"Camino despejado.\"\n"
+                "- NUNCA uses listas numeradas ni viñetas. Habla de forma natural y directa, como si le hablaras a alguien al oído.\n"
+                "- Máximo 2 oraciones cortas y concisas.\n"
+                "- Si ves algún letrero o texto visible, menciónalo brevemente al final solo si queda espacio.\n"
+                "- Responde en español."
             )
-            max_tok = 180
+            max_tok = 100
         else:
-            # Prompt modo calle - navegación exterior con detección precisa de superficies
+            # Prompt modo calle - obstáculos cercanos primero, luego lejanos, sin itemizar
             prompt = (
                 "Eres un asistente de navegación para una persona ciega caminando por la calle. "
-                "La imagen muestra lo que está DIRECTAMENTE AL FRENTE del usuario. "
-                "Analiza con MÁXIMA PRECISIÓN en este orden:\n"
-                "1) SUPERFICIE DEL SUELO: ¿Es vereda lisa, adoquines, tierra, pasto, asfalto? "
-                "¿HAY ESCALERAS, GRADAS O PELDAÑOS? Si ves líneas horizontales con sombras que forman escalones, "
-                "di EXACTAMENTE 'hay escaleras' e indica si suben o bajan y cuántos peldaños aproximados. "
-                "¿Hay rampas, baches, hoyos, cordones de vereda, o desniveles? NUNCA digas 'camino liso' "
-                "si hay cualquier cambio de nivel visible.\n"
-                "2) OBSTÁCULOS: ¿Qué hay al frente? (pared, reja, poste, vehículo, persona, árbol, banca). "
-                "Indica la dirección (izquierda, derecha, al frente) y distancia aproximada. "
-                "NUNCA digas 'camino despejado' si hay un objeto sólido a menos de 3 metros.\n"
-                "3) TEXTO VISIBLE: Lee COMPLETO cualquier letrero, cartel, señal de tránsito, "
-                "nombre de calle o número de bus visible.\n"
-                "4) ALTURA: Si hay objetos elevados (ramas bajas, toldos, señales), estima la altura "
-                "usando referencias como puertas (~2m), personas (~1.7m), o postes.\n"
-                "Responde en máximo 3 oraciones cortas en español. Sé PRECISO con las superficies."
+                "Describe lo que hay al frente de forma NATURAL y DIRECTA, como si le hablaras al oído.\n\n"
+                "REGLAS ESTRICTAS:\n"
+                "- NUNCA uses listas numeradas, viñetas, ni formato tipo 'Superficie: ...', 'Obstáculos: ...'. "
+                "Habla en oraciones corridas naturales.\n"
+                "- Empieza SIEMPRE por lo más URGENTE y CERCANO: obstáculos inmediatos, escaleras, "
+                "desniveles, personas, postes, hoyos, baches, o cualquier peligro en el camino directo.\n"
+                "- Después menciona lo que está más lejos: vehículos, cruces, cambios de superficie.\n"
+                "- Si ves escaleras o gradas, di claramente si suben o bajan.\n"
+                "- Si ves algún letrero, cartel, señal de tránsito, nombre de calle o número de bus, "
+                "menciónalo brevemente al final como información adicional.\n"
+                "- Máximo 2 oraciones cortas. Sé conciso, cada palabra cuenta.\n"
+                "- Responde en español."
             )
-            max_tok = 200
+            max_tok = 120
             
         response = client.chat.completions.create(
             model="gpt-4o",
