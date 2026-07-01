@@ -173,21 +173,23 @@ def procesar_imagen_directo(img_bytes_opt: bytes, user_id: str = None, modo: str
         img_b64 = base64.b64encode(img_bytes_opt).decode('utf-8')
         
         if modo == "casa":
-            # Prompt modo casa - solo obstáculos a nivel cabeza, omitir si no hay nada
+            # Prompt modo casa - obstáculos a nivel cabeza + descripción del entorno
             prompt = (
                 "Eres un asistente para una persona ciega dentro de una casa o edificio. "
-                "Tu ÚNICA prioridad es detectar peligros A NIVEL DE LA CABEZA del usuario: "
-                "lámparas bajas, marcos de puerta, estantes salientes, ventiladores de techo, "
-                "ropa colgada, cables colgantes, repisas, o cualquier objeto que sobresalga y pueda golpearle la cabeza o la cara. "
+                "Describe brevemente lo que se ve en la imagen y prioriza detectar peligros "
+                "A NIVEL DE LA CABEZA del usuario: lámparas bajas, marcos de puerta, estantes salientes, "
+                "ventiladores de techo, ropa colgada, cables colgantes, repisas, o cualquier objeto "
+                "que sobresalga y pueda golpearle la cabeza o la cara. "
                 "También menciona escaleras o desniveles si los ves.\n\n"
                 "REGLAS ESTRICTAS:\n"
-                "- Si NO hay nada peligroso a nivel de cabeza ni escaleras, responde EXACTAMENTE: \"Camino despejado.\"\n"
+                "- Describe lo que hay al frente de forma natural: muebles, puertas, pasillos, paredes, personas, etc.\n"
+                "- Si hay peligros a nivel de cabeza, menciónalos con urgencia.\n"
                 "- NUNCA uses listas numeradas ni viñetas. Habla de forma natural y directa, como si le hablaras a alguien al oído.\n"
                 "- Máximo 2 oraciones cortas y concisas.\n"
-                "- Si ves algún letrero o texto visible, menciónalo brevemente al final solo si queda espacio.\n"
+                "- Si ves algún letrero o texto visible, menciónalo brevemente al final.\n"
                 "- Responde en español."
             )
-            max_tok = 100
+            max_tok = 120
         else:
             # Prompt modo calle - obstáculos cercanos primero, luego lejanos, sin itemizar
             prompt = (
